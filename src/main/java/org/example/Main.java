@@ -1,5 +1,15 @@
 package org.example;
 
+import org.example.action.invoker.MoveInvoker;
+import org.example.mapreader.MapReader;
+import org.example.mapreader.impl.FileMapReader;
+import org.example.model.PositionResult;
+import org.example.movementReader.MovementReader;
+import org.example.movementReader.impl.FileMovementReader;
+import org.example.validator.PositionValidationStrategy;
+import org.example.validator.impl.DefaultPositionValidator;
+
+import javax.xml.validation.Validator;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
@@ -7,43 +17,52 @@ import java.util.*;
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
-    public static void main(String[] args) throws IOException{
+    public static void main(String[] args) throws Exception {
 
         if (args.length != 2) {
             System.err.println("Usage: java Aventurier <carte.txt> <deplacement.txt>");
             return;
         }
 
-        List<String> carte = Files.readAllLines(Paths.get(args[0]));
-        List<String> mouvements = Files.readAllLines(Paths.get(args[1]));
 
-        String[] start = mouvements.get(0).split(",");
-        int x = Integer.parseInt(start[0]);
-        int y = Integer.parseInt(start[1]);
-        String directions = mouvements.get(1);
 
-        int hauteur = carte.size();
-        int largeur = carte.get(0).length();
+        // Read
+        MapReader mapReader = new FileMapReader(args[0]);
+        MovementReader movementReader = new FileMovementReader(args[1]);
 
-        for (char dir : directions.toCharArray()) {
-            int nx = x, ny = y;
-            switch (dir) {
-                case 'N': ny--; break;
-                case 'S': ny++; break;
-                case 'E': nx++; break;
-                case 'O': nx--; break;
-            }
+        // Lecture de la carte et des mouvements
+        char[][] carte = mapReader.readMap();
+        int[] initialPosition = movementReader.readInitialPosition();
+        char[] directions = movementReader.readMovements();
 
-            if (nx >= 0 && nx < largeur && ny >= 0 && ny < hauteur) {
-                if (carte.get(ny).charAt(nx) == ' ') {
-                    x = nx;
-                    y = ny;
-                }
-            }
+
+
+
+        // Validation de la position initiale
+        PositionValidationStrategy validator = new DefaultPositionValidator();
+        PositionResult result = validator.validate(carte, initialPosition[0], initialPosition[1]);
+
+
+
+
+
+
+        // Create MoveInvoker and execute the moves
+        MoveInvoker moveInvoker = new MoveInvoker(directions);
+        moveInvoker.executeMoves(result, carte);
+
+        int x=result.getX();
+        int y=result.getY();
+        if (result.wasSwitched()) {
+            int temp = x;
+            x = y;
+            y = temp;
         }
 
-        System.out.println("Position finale : (" + x + "," + y + ")");
+        System.out.println("✅ Position finale : (" + x + "," + y + ")");
+    }
 
-        }
 
+
+    
 }
